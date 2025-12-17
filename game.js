@@ -322,8 +322,7 @@ function initStage4() {
             pancake.style.opacity = 0.5 + (bakeTime / TOTAL_BAKE_TIME) * 0.5;
 
             if ((bakeTime / TOTAL_BAKE_TIME) >= 1) {
-                pancake.style.brightness = 0.5;
-                pancake.style.contrast = 1.3;
+                pancake.style.filter = "grayscale(70%) brightness(60%) contrast(130%)";
                 globalMsg.textContent = "팬케이크가 타버렸어요!!";
             }
         }
