@@ -88,7 +88,7 @@ function initStage1() {
         btn.onclick = null;
         
         const targetCenter = 50;
-        let points = Math.max(0, 20 - Math.abs(targetCenter - pos) / 2);
+        let points = Math.max(0, 20 - Math.floor(Math.abs(targetCenter - pos)));
 
         if (pos >= 45 && pos <= 55) {
             updateStatus("Perfect! 깔끔하게 깨졌어요!");
@@ -107,7 +107,7 @@ function initStage1() {
 // ==========================================
 function initStage2() {
     showScreen(2);
-    updateStatus("15초 안에 반죽을 섞으세요! 토끼는 더 빨리 방해합니다!");
+    updateStatus("10초 안에 반죽을 섞으세요! 토끼는 더 빨리 방해합니다!");
 
     const bowl = document.getElementById('bowl-area');
     const fillBar = document.getElementById('mix-fill');
@@ -119,15 +119,15 @@ function initStage2() {
     let pepperCount = 0;
     let isDragging = false;
     
-    let timeLeft = 150; // 15초 (0.1초 단위)
-    const MAX_TIME = 150;
+    let timeLeft = 10; // 10초 (0.1초 단위)
+    const MAX_TIME = 10;
 
     fillBar.style.width = '0%';
     rabbit.classList.add('hidden');
 
     // --- 난이도 조절 포인트 1: 전체 시간 제한 추가 ---
     const stageTimer = setInterval(() => {
-        timeLeft--;
+        timeLeft -= 0.1;
         timerBar.style.width = (timeLeft / MAX_TIME * 100) + '%';
 
         if (timeLeft <= 0) {
@@ -355,7 +355,7 @@ function initStage4() {
     function finishStage4(bakeTime, totalTime) {
         clearAllTimers();
         let error = totalTime - bakeTime;
-        let score = 20 - Math.abs(Math.floor(error / 10));
+        let score = 20 - Math.abs(Math.floor(error / 10 * 3));
         addScore('stage4', score);
 
         if (error > 50)
@@ -379,12 +379,12 @@ function initStage5() {
     const dropZone = document.querySelector('#stage-5 .character'); 
 
     const toppings = [
-        { name: "딸기", icon: "🍓" }
-        , { name: "시럽", icon: "🍯" }
-        , { name: "버터", icon: "🧈" }
-        , { name: "블루베리", icon: "🫐" }
-        , { name: "초코", icon: "🍫" }
-        , { name: "생크림", icon: "🍦" }
+        { name: "딸기", icon: "🍓" },
+        { name: "시럽", icon: "🍯" },
+        { name: "버터", icon: "🧈" },
+        { name: "블루베리", icon: "🫐" },
+        { name: "초코", icon: "🍫" },
+        { name: "생크림", icon: "🍦" }
     ];
 
     const targetOrder = [];
