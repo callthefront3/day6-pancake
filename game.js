@@ -87,18 +87,14 @@ function initStage1() {
         clearInterval(interval);
         btn.onclick = null;
         
-        const targetMin = 40;
-        const targetMax = 60;
-        let points = 0;
+        const targetCenter = 50;
+        let points = Math.max(0, 20 - Math.abs(targetCenter - pos) / 2);
 
-        if (pos >= targetMin && pos <= targetMax) {
-            points = 20;
+        if (pos >= 45 && pos <= 55) {
             updateStatus("Perfect! 깔끔하게 깨졌어요!");
-        } else if (pos >= 30 && pos <= 70) {
-            points = 15;
+        } else if (pos >= 40 && pos <= 60) {
             updateStatus("Good! 껍질이 조금 들어갔네요.");
         } else {
-            points = 5;
             updateStatus("Bad... 계란이 으깨졌어요.");
         }
 
@@ -374,30 +370,23 @@ function initStage4() {
 }
 
 // ==========================================
-// 5단계: 토핑 (3단계 연속 주문) - 수정사항 3 반영: 드래그 드롭으로 변경
+// 5단계: 토핑 (터치/드래그 지원 버전)
 // ==========================================
 function initStage5() {
     showScreen(5);
     const orderDisplay = document.getElementById('order-display');
     const toppingBox = document.getElementById('topping-box');
-
-    
-    
-    // 팬케이크 드롭 영역 (stage-5는 stage-4의 pan-area와 같은 요소를 사용하지 않으므로, 임시 드롭존을 설정)
-    // 여기서는 화면 중앙의 강아지/팬케이크 아이콘이 드롭존 역할을 하도록 하겠습니다.
     const dropZone = document.querySelector('#stage-5 .character'); 
 
-    // 토핑 데이터
     const toppings = [
-        { name: "딸기", icon: "🍓" },
-        { name: "시럽", icon: "🍯" },
-        { name: "버터", icon: "🧈" },
-        { name: "블루베리", icon: "🫐" },
-        { name: "초코", icon: "🍫" },
-        { name: "생크림", icon: "🍦" }
+        { name: "딸기", icon: "🍓" }
+        , { name: "시럽", icon: "🍯" }
+        , { name: "버터", icon: "🧈" }
+        , { name: "블루베리", icon: "🫐" }
+        , { name: "초코", icon: "🍫" }
+        , { name: "생크림", icon: "🍦" }
     ];
 
-    // 1. 주문 3개 생성 (중복 허용)
     const targetOrder = [];
     for(let i=0; i<3; i++) {
         targetOrder.push(toppings[Math.floor(Math.random() * toppings.length)]);
@@ -406,8 +395,7 @@ function initStage5() {
     let currentStep = 0; 
     let timeLeft = 12.0;
     const MAX_TIME = 12.0;
-    
-    // UI 업데이트 함수
+
     function updateOrderUI() {
         if (currentStep >= 3) {
             orderDisplay.textContent = "✅ 모든 토핑 완료!";
@@ -421,110 +409,123 @@ function initStage5() {
     }
 
     updateOrderUI();
-    updateStatus("주문 순서대로 토핑을 팬케이크 위로 드래그하세요!");
+    updateStatus("토핑을 팬케이크 위로 드래그하세요!");
 
-    // 타이머
     const timer = setInterval(() => {
         timeLeft -= 0.1;
         timerBar.style.width = (timeLeft / MAX_TIME * 100) + '%';
-
-        if (timeLeft <= 0) {
+        if (timeLeft <= 0)
             finishStage5(false);
-        }
     }, 100);
     state.timers.push(timer);
 
-    // 토핑 버튼 생성 및 드래그 이벤트 등록
+    // --- 토핑 생성 및 이벤트 바인딩 ---
     toppingBox.innerHTML = '';
     const shuffled = [...toppings].sort(() => Math.random() - 0.5);
     
     shuffled.forEach(t => {
         const div = document.createElement('div');
         div.className = 'topping-item';
+        div.style.touchAction = 'none'; // 브라우저 기본 스크롤 방지 (중요)
         div.innerHTML = `<span style="font-size:2rem">${t.icon}</span><br><span style="font-size:0.8rem">${t.name}</span>`;
-        
-        // 드래그 속성 추가
-        div.setAttribute('draggable', true);
         div.dataset.toppingName = t.name;
 
-        // 드래그 시작 시 데이터 설정
+        // 1. PC용 Drag & Drop
+        div.setAttribute('draggable', true);
         div.addEventListener('dragstart', (e) => {
-            e.dataTransfer.setData('text/plain', e.target.dataset.toppingName);
-            e.target.style.opacity = '0.5';
+            e.dataTransfer.setData('text/plain', t.name);
         });
 
-        // 드래그 종료 시 투명도 복원
-        div.addEventListener('dragend', (e) => {
-            e.target.style.opacity = '1';
+        // 2. 모바일용 터치 이벤트
+        let clone;
+        div.addEventListener('touchstart', (e) => {
+            const touch = e.touches[0];
+            // 드래그 시각화를 위한 클론 생성
+            clone = div.cloneNode(true);
+            clone.style.position = 'fixed';
+            clone.style.left = touch.clientX - 25 + 'px';
+            clone.style.top = touch.clientY - 25 + 'px';
+            clone.style.zIndex = '1000';
+            clone.style.opacity = '0.8';
+            clone.style.pointerEvents = 'none'; // 클론이 아래 요소를 가리지 않게 함
+            document.body.appendChild(clone);
         });
-        
+
+        div.addEventListener('touchmove', (e) => {
+            if (!clone) return;
+            const touch = e.touches[0];
+            clone.style.left = touch.clientX - 25 + 'px';
+            clone.style.top = touch.clientY - 25 + 'px';
+
+            // 드롭 위치 판정 (드롭존의 위치 계산)
+            const rect = dropZone.getBoundingClientRect();
+            if (touch.clientX >= rect.left && touch.clientX <= rect.right &&
+                touch.clientY >= rect.top && touch.clientY <= rect.bottom) {
+                dropZone.style.border = '2px dashed #ffc46bff'; // 드래그 오버 시 시각적 피드백
+            } else {
+                dropZone.style.border = 'none';
+            }
+        });
+
+        div.addEventListener('touchend', (e) => {
+            if (!clone) return;
+            const touch = e.changedTouches[0];
+            document.body.removeChild(clone);
+            clone = null;
+
+            // 드롭 위치 판정 (드롭존의 위치 계산)
+            const rect = dropZone.getBoundingClientRect();
+            if (touch.clientX >= rect.left && touch.clientX <= rect.right &&
+                touch.clientY >= rect.top && touch.clientY <= rect.bottom) {
+                checkTopping(t.name);
+            }
+        });
+
         toppingBox.appendChild(div);
     });
 
-    // 드롭존 (강아지 아이콘) 이벤트 리스너 등록
-    // 기본 동작 방지 (필수)
+    // PC용 드롭 이벤트
     dropZone.addEventListener('dragover', (e) => {
         e.preventDefault();
         dropZone.style.border = '2px dashed #ffc46bff'; // 드래그 오버 시 시각적 피드백
     });
-
-    // 시각적 피드백 제거
     dropZone.addEventListener('dragleave', (e) => {
-        dropZone.style.border = 'none';
-    });
-
-    // 드롭 발생 시 처리
-    dropZone.addEventListener('drop', (e) => {
         e.preventDefault();
         dropZone.style.border = 'none';
+    });
+    dropZone.addEventListener('drop', (e) => {
+        e.preventDefault();
+        checkTopping(e.dataTransfer.getData('text/plain'));
+    });
 
+    // 정답 확인 로직 공통화
+    function checkTopping(name) {
         if (currentStep >= 3) return;
-
-        const droppedToppingName = e.dataTransfer.getData('text/plain');
         const currentTarget = targetOrder[currentStep].name;
 
-        // 정답 체크
-        if (droppedToppingName === currentTarget) {
-            // 성공: 다음 단계로
+        if (name === currentTarget) {
             currentStep++;
-            
-            globalMsg.textContent = `👍 ${droppedToppingName} 성공!`;
-            setTimeout(() => globalMsg.textContent = "", 500);
-
-            // 팬케이크에 토핑 아이콘 시뮬레이션
+            globalMsg.textContent = `👍 ${name} 성공!`;
             dropZone.innerHTML += targetOrder[currentStep-1].icon; 
-            dropZone.style.fontSize = '3rem'; // 강아지 아이콘 크기 조절
-
-            if (currentStep >= 3) {
-                finishStage5(true);
-            } else {
-                updateOrderUI();
-            }
+            if (currentStep >= 3) finishStage5(true);
+            else updateOrderUI();
         } else {
-            // 실패: 시간 패널티 
-            timeLeft -= 1.5; // 1.5초 시간 깎임
-            globalMsg.textContent = `❌ ${droppedToppingName} (틀렸어요! 시간 감소)`;
+            timeLeft -= 1.5;
+            globalMsg.textContent = `❌ 틀렸어요! (시간 감소)`;
+
             dropZone.style.border = '2px solid red'; // 틀릴 시 시각적 피드백
             setTimeout(() => {
                 globalMsg.textContent = "";
                 dropZone.style.border = 'none';
             }, 500);
         }
-    });
-
+    }
 
     function finishStage5(isSuccess) {
         clearAllTimers();
-        // 드롭 이벤트 제거 (게임 종료 시 정리)
-        dropZone.removeEventListener('dragover', (e) => e.preventDefault());
-        dropZone.removeEventListener('drop', () => {});
-        
         let score = isSuccess ? 20 : Math.max(0, currentStep * 5);
         addScore('stage5', score);
-        
-        if (isSuccess) updateStatus("강아지가 배달을 시작합니다!");
-        else updateStatus("시간 초과... 배달에 늦었습니다.");
-        
+        updateStatus(isSuccess ? "배달 시작!" : "시간 초과...");
         setTimeout(showResult, 1500);
     }
 }
