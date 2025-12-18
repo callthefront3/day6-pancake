@@ -1,0 +1,151 @@
+:root {
+    --primary-color: #FFD1DC;
+    --accent-color: #FF6B6B;
+    --bg-color: #FFF5F0;
+    --fail-color: #5d5d5d;
+}
+
+body {
+    font-family: 'Gamja Flower', cursive, sans-serif;
+    background-color: var(--bg-color);
+    margin: 0;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 100dvh;
+    overflow: hidden;
+    user-select: none;
+    -webkit-user-select: none;
+    touch-action: manipulation;
+}
+
+#game-container {
+    width: 100%;
+    max-width: 480px;
+    height: 95dvh;
+    background: white;
+    border-radius: 20px;
+    box-shadow: 0 10px 25px rgba(0,0,0,0.1);
+    position: relative;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    padding: 15px;
+    box-sizing: border-box;
+    text-align: center;
+}
+
+h1 { margin: 5px 0; font-size: 1.8rem; color: #555; line-height: 1.2; }
+h2 { margin: 0 0 10px 0; color: var(--accent-color); font-size: 1.4rem; }
+
+/* 타이머 바 */
+#timer-wrapper { width: 100%; height: 8px; background: #eee; border-radius: 5px; margin-bottom: 10px; overflow: hidden; display: none; }
+#timer-bar { height: 100%; width: 100%; background: var(--accent-color); transition: width 0.1s linear; }
+
+/* 공통 UI */
+.stage { display: none; height: 100%; flex-direction: column; justify-content: space-between; }
+.active { display: flex; }
+
+.status-bar {
+    background: #eee; border-radius: 10px; height: 20px; width: 100%; margin: 10px 0; overflow: hidden; position: relative; border: 1px solid #ddd;
+}
+
+.fill {
+    height: 100%; background: #4CAF50; width: 0%; transition: width 0.1s linear;
+}
+
+/* 버튼 스타일 */
+button {
+    background: var(--primary-color); border: none; padding: 15px 0; width: 100%;
+    font-size: 1.3rem; border-radius: 50px; cursor: pointer;
+    box-shadow: 0 4px #eeb0bb; transition: all 0.1s; font-weight: bold; color: #555;
+    font-family: 'Gamja Flower', cursive; margin-top: 10px;
+}
+button:active { transform: translateY(4px); box-shadow: none; }
+button:disabled { background: #ccc; box-shadow: none; color: #888; transform: none; }
+
+.character { font-size: 4rem; margin: 10px 0; animation: bounce 1s infinite alternate; }
+@keyframes bounce { from { transform: translateY(0); } to { transform: translateY(-10px); } }
+
+.info-text { font-size: 1rem; color: #666; margin-bottom: 5px; line-height: 1.3; word-break: keep-all; }
+.warning-text { color: #ff4757; font-weight: bold; animation: blink 0.5s infinite; }
+@keyframes blink { 50% { opacity: 0.5; } }
+
+/* Stage 1: 계란 (3연속) */
+#crack-zone { position: relative; height: 30px; background: #ddd; margin: 20px 0; border-radius: 15px; overflow: hidden; }
+#crack-target { 
+    position: absolute; top: 0; bottom: 0; background: rgba(255, 235, 59, 0.6); 
+    border-left: 2px solid #FBC02D; border-right: 2px solid #FBC02D; z-index: 1;
+}
+#crack-needle { position: absolute; top:0; bottom:0; width: 4px; background: red; left: 0%; z-index: 2; border-radius: 2px; }
+.egg-count { font-size: 1.2rem; margin-bottom: 5px; color: #888; }
+.egg-active { color: var(--accent-color); font-weight: bold; transform: scale(1.2); display:inline-block; }
+
+/* Stage 2 & 4: 방해꾼 공통 */
+.intruder {
+    position: absolute; width: 70px; height: 70px; font-size: 3rem;
+    display: flex; align-items: center; justify-content: center;
+    background: white; border-radius: 50%; border: 3px solid red;
+    cursor: pointer; z-index: 100; animation: shake 0.3s infinite; box-shadow: 0 5px 15px rgba(0,0,0,0.2);
+}
+@keyframes shake { 0% { transform: rotate(0deg); } 25% { transform: rotate(-15deg); } 75% { transform: rotate(15deg); } }
+
+/* Stage 2: 믹싱 */
+#bowl-area {
+    width: 220px; height: 220px; background: #FFF9C4;
+    border: 6px solid #FBC02D; border-radius: 50%; margin: 10px auto;
+    display: flex; align-items: center; justify-content: center; position: relative;
+    touch-action: none;
+}
+
+/* Stage 3: 머랭 (오버휘핑) */
+#meringue-fill { transition: width 0.05s linear, background 0.2s; }
+#meringue-foam { font-size: 5rem; transition: transform 0.1s; }
+.danger-zone {
+    position: absolute; right: 0; top: 0; bottom: 0; width: 10%;
+    background: repeating-linear-gradient(45deg, transparent, transparent 5px, rgba(255,0,0,0.2) 5px, rgba(255,0,0,0.2) 10px);
+    z-index: 0;
+}
+
+/* Stage 4: 굽기 (무빙 타겟 + 도둑 여우) */
+#pan-area { 
+    position: relative; height: 140px; width: 140px; background: #3E2723; 
+    border-radius: 50%; display: flex; justify-content: center; align-items: center;
+    border: 4px solid #281815; overflow: visible; /* 여우가 튀어나오도록 */
+}
+#pancake { font-size: 4rem; opacity: 0.5; transition: color 0.5s; }
+#temp-gauge { height: 180px; width: 40px; background: #ddd; position: relative; border-radius: 20px; overflow: hidden; border: 2px solid #ccc;}
+#temp-indicator { height: 6px; width: 100%; background: red; position: absolute; bottom: 0; transition: bottom 0.2s cubic-bezier(0.1, 0.7, 1.0, 0.1); z-index: 10; box-shadow: 0 0 5px red;}
+#temp-target { 
+    position: absolute; bottom: 40%; height: 25%; width: 100%; 
+    background: rgba(76, 175, 80, 0.4); border-top: 2px solid green; border-bottom: 2px solid green;
+    transition: bottom 0.5s ease-in-out;
+}
+
+/* Stage 5: 토핑 (암기) */
+#topping-box { display: flex; gap: 8px; justify-content: center; flex-wrap: wrap; margin-top: 10px; }
+.topping-item { 
+    width: 60px; height: 70px; border: 2px solid #eee; border-radius: 10px; 
+    display: flex; flex-direction: column; justify-content: center; align-items: center;
+    background: white; cursor: grab; transition: 0.1s; user-select: none;
+}
+.topping-item:active { cursor: grabbing; transform: scale(0.95); border-color: var(--accent-color); }
+
+#order-display {
+    min-height: 80px; display: flex; align-items: center; justify-content: center; flex-direction: column;
+    background: #fff; border: 2px dashed #aaa; padding: 10px; border-radius: 10px; margin: 10px 0;
+    transition: opacity 0.5s;
+}
+.blur-text { filter: blur(8px); opacity: 0.5; user-select: none; pointer-events: none; }
+
+/* 결과 화면 */
+.score-board { background: #f9f9f9; padding: 15px; border-radius: 15px; margin: 10px 0; font-size: 1.1rem; }
+.score-row { display: flex; justify-content: space-between; border-bottom: 1px solid #eee; padding: 5px 0; }
+.score-row:last-child { border-bottom: none; font-weight: bold; color: var(--accent-color); font-size: 1.3rem; margin-top: 5px;}
+.grade-badge { font-size: 2rem; display: block; margin: 10px 0; font-weight: bold; color: #FF9800; text-shadow: 2px 2px 0px #fff; }
+
+.hidden { display: none !important; }
+#global-msg { 
+    height: 24px; color: #ff4757; font-weight: bold; font-size: 0.9rem; margin-top: 5px; 
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
