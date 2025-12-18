@@ -3,279 +3,122 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>퐁실퐁실 수플레 마스터</title>
+    <title>퐁실퐁실 수플레 마스터 (Hardcore + 🦊)</title>
     <link href="https://fonts.googleapis.com/css2?family=Gamja+Flower&display=swap" rel="stylesheet">
-    <style>
-        :root {
-            --primary-color: #FFD1DC; /* 연분홍 */
-            --accent-color: #FF6B6B;
-            --bg-color: #FFF5F0;
-        }
-
-        body {
-            font-family: 'Gamja Flower', cursive, sans-serif;
-            background-color: var(--bg-color);
-            margin: 0;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            height: 100dvh;
-            overflow: hidden;
-            user-select: none;
-            -webkit-user-select: none;
-        }
-
-        #game-container {
-            width: 100%;
-            max-width: 480px;
-            height: 90dvh;
-            background: white;
-            border-radius: 20px;
-            box-shadow: 0 10px 25px rgba(0,0,0,0.1);
-            position: relative;
-            overflow: hidden;
-            display: flex;
-            flex-direction: column;
-            padding: 20px;
-            box-sizing: border-box;
-            text-align: center;
-        }
-
-        h1 { margin: 10px 0; font-size: 1.5rem; color: #555; }
-        h2 { margin: 0 0 15px 0; color: var(--accent-color); }
-
-        /* 전용 타이머 바 (상단 고정) */
-        #timer-wrapper { width: 100%; height: 10px; background: #eee; border-radius: 5px; margin-bottom: 10px; overflow: hidden; display: none; }
-        #timer-bar { height: 100%; width: 100%; background: var(--accent-color); transition: width 0.1s linear; }
-
-        /* 공통 UI 요소 */
-        .stage { display: none; height: 100%; flex-direction: column; justify-content: space-between; }
-        .active { display: flex; }
-        
-        .status-bar {
-            background: #eee;
-            border-radius: 10px;
-            height: 20px;
-            width: 100%;
-            margin: 10px 0;
-            overflow: hidden;
-            position: relative;
-        }
-        
-        .fill {
-            height: 100%;
-            background: #4CAF50;
-            width: 0%;
-            transition: width 0.1s linear;
-        }
-
-        .zone {
-            position: absolute;
-            top: 0;
-            bottom: 0;
-            background: rgba(255, 235, 59, 0.5);
-            border-left: 2px solid #FBC02D;
-            border-right: 2px solid #FBC02D;
-            z-index: 1;
-        }
-
-        button {
-            background: var(--primary-color);
-            border: none;
-            padding: 15px 30px;
-            font-size: 1.2rem;
-            border-radius: 50px;
-            cursor: pointer;
-            box-shadow: 0 4px #eeb0bb;
-            transition: all 0.1s;
-            font-weight: bold;
-            color: #555;
-        }
-        button:active { transform: translateY(4px); box-shadow: none; }
-        button:disabled { background: #ccc; box-shadow: none; color: #888; }
-
-        .character { font-size: 4rem; margin: 20px 0; animation: bounce 1s infinite alternate; }
-        @keyframes bounce { from { transform: translateY(0); } to { transform: translateY(-10px); } }
-
-        /* Stage 1: 계란 */
-        #crack-zone { position: relative; height: 30px; background: #ddd; margin: 20px 0; border-radius: 15px; }
-        #crack-bar { position: absolute; top:0; bottom:0; width: 5px; background: red; left: 0%; transition: left 0.05s linear; z-index: 2;}
-        
-        /* Stage 2: 믹싱 */
-        #bowl-area {
-            width: 200px;
-            height: 200px;
-            background: #FFF9C4;
-            border: 4px solid #FBC02D;
-            border-radius: 50%;
-            margin: 0 auto;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            position: relative;
-        }
-        .whisk-motion { animation: spin 0.5s linear infinite; }
-        @keyframes spin { 100% { transform: rotate(360deg); } }
-
-        /* 방해꾼 (토끼/여우) */
-        .intruder {
-            position: absolute;
-            width: 80px;
-            height: 80px;
-            font-size: 3rem;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            background: rgba(255,255,255,0.9);
-            border-radius: 50%;
-            border: 2px solid red;
-            cursor: pointer;
-            z-index: 100;
-            animation: shake 0.5s infinite;
-        }
-        @keyframes shake { 0% { transform: rotate(0deg); } 25% { transform: rotate(-10deg); } 75% { transform: rotate(10deg); } }
-
-        /* Stage 3: 머랭 */
-        #meringue-foam { font-size: 5rem; transition: transform 0.2s; }
-
-        /* Stage 4: 굽기 */
-        #pan-area { 
-            position: relative; 
-            height: 150px; 
-            background: #3E2723; 
-            border-radius: 50%; 
-            margin: 20px; 
-            display: flex; 
-            justify-content: center; 
-            align-items: center;
-        }
-        #pancake { font-size: 4rem; opacity: 0.5; transition: color 0.5s; }
-        #temp-gauge { height: 150px; width: 30px; background: #ddd; margin: 0 auto; position: relative; border-radius: 10px; overflow: hidden;}
-        #temp-indicator { height: 10%; width: 100%; background: red; position: absolute; bottom: 0; transition: bottom 0.1s; }
-        #temp-target { position: absolute; bottom: 40%; height: 30%; width: 100%; background: rgba(0,255,0,0.3); border-top: 1px solid green; border-bottom: 1px solid green;}
-
-        /* Stage 5: 토핑 (수정됨) */
-        #topping-box { display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; margin-top: 10px; }
-        .topping-item { 
-            padding: 10px; border: 2px solid #eee; border-radius: 10px; 
-            cursor: pointer; transition: 0.2s; background: white; width: 60px;
-        }
-        .topping-item:hover { background: #FFEBEE; border-color: var(--accent-color); }
-        #order-display {
-            font-size: 1.2rem; font-weight: bold; color: #555;
-            background: #fff; border: 2px dashed #aaa; padding: 10px; border-radius: 10px; margin: 10px 0;
-        }
-        .current-target { color: var(--accent-color); font-size: 1.4rem; animation: pulse 1s infinite; }
-        @keyframes pulse { 0% { transform: scale(1); } 50% { transform: scale(1.1); } 100% { transform: scale(1); } }
-
-        /* 결과 화면 */
-        #result-screen { text-align: center; }
-        .score-row { display: flex; justify-content: space-between; padding: 5px 20px; border-bottom: 1px solid #eee; }
-        .final-grade { font-size: 1.5rem; color: var(--accent-color); font-weight: bold; margin: 20px 0; }
-
-        /* 유틸리티 */
-        .hidden { display: none !important; }
-        .info-text { font-size: 0.9rem; color: #777; margin-bottom: 10px; }
-    </style>
+    <link href="base.css" rel="stylesheet">
 </head>
 <body>
+    <div id="game-container">
+        <div id="timer-wrapper"><div id="timer-bar"></div></div>
+        <div id="game-status" style="font-size: 1.1rem; color: #333;">준비 완료!</div>
+        <div id="global-msg"></div>
 
-<div id="game-container">
-    <div id="timer-wrapper"><div id="timer-bar"></div></div>
-
-    <div id="game-status">준비 완료!</div>
-    <div id="global-msg" style="color:red; height:20px; font-size:0.8rem;"></div>
-
-    <div id="start-screen" class="stage active">
-        <div>
-            <h1>🥞 퐁실퐁실<br>수플레 마스터</h1>
-            <div class="character">👩‍🍳</div>
-            <p>5단계 미니게임을 통과하여<br>최고의 수플레를 만드세요!</p>
-        </div>
-        <button id="start-btn">요리 시작하기</button>
-    </div>
-
-    <div id="stage-1" class="stage">
-        <h2>1단계: 계란 깨기</h2>
-        <p class="info-text">게이지가 노란 영역일 때 '탁!' 누르세요.</p>
-        <div class="character">🥚</div>
-        <div id="crack-zone">
-            <div class="zone" style="left: 45%; width: 10%;"></div>
-            <div id="crack-bar"></div>
-        </div>
-        <div style="flex-grow:1;"></div>
-        <button id="crack-btn">탁! 깨기</button>
-    </div>
-
-    <div id="stage-2" class="stage">
-        <h2>2단계: 반죽 & 후추 방어</h2>
-        <p class="info-text">그릇 안을 문질러 섞으세요!<br>🐰토끼가 나타나면 클릭해서 쫓아내세요!</p>
-        <div class="status-bar"><div id="mix-fill" class="fill"></div></div>
-        
-        <div id="bowl-area">
-            <span style="font-size:3rem;">🥣</span>
-            <div id="rabbit-intruder" class="intruder hidden" style="top: -20px; right: -20px;">🐰</div>
-        </div>
-        <div style="flex-grow:1;"></div>
-        <p id="mix-msg">반죽 진행도: 0%</p>
-    </div>
-
-    <div id="stage-3" class="stage">
-        <h2>3단계: 머랭 치기</h2>
-        <p class="info-text">버튼을 빠르게 연타하여<br>단단한 머랭을 만드세요!</p>
-        <div class="status-bar"><div id="meringue-fill" class="fill"></div></div>
-        <div id="meringue-foam">☁️</div>
-        <div style="flex-grow:1;"></div>
-        <button id="whisk-btn">휘핑하기! (연타)</button>
-    </div>
-
-    <div id="stage-4" class="stage">
-        <h2>4단계: 불 조절 & 여우 방어</h2>
-        <p class="info-text">버튼을 눌러 온도를 초록색 칸에 유지하세요.<br>🦊여우가 보이면 즉시 클릭하세요!</p>
-        
-        <div style="display:flex; justify-content: center; gap:20px; align-items: flex-end;">
-            <div id="temp-gauge">
-                <div id="temp-target"></div>
-                <div id="temp-indicator"></div>
+        <div id="start-screen" class="stage active">
+            <div style="margin-top: 30px;">
+                <h1>🥞 퐁실퐁실<br>수플레 마스터</h1>
+                <h2 style="font-size:1rem; color:#888;">🔥 Hardcore Edition + 🦊 🔥</h2>
+                <div class="character">👩‍🍳</div>
+                <p style="background:#FFF9C4; padding:10px; border-radius:10px; font-size:0.95rem;">
+                    <b>가속하는 계란, 후추범 토끼,<br>관성 불조절, 기억력 테스트...</b><br>
+                    그리고 <b style="color:red;">팬케이크 도둑 여우</b>까지?!<br>
+                    당신은 진정한 장인입니까?
+                </p>
             </div>
-            <div id="pan-area">
-                <span id="pancake">🥞</span>
-                <div id="fox-intruder" class="intruder hidden" style="bottom: -10px; right: -30px;">🦊</div>
-            </div>
+            <div style="flex-grow:1;"></div>
+            <button id="start-btn">도전 시작하기!</button>
         </div>
-        
-        <div style="flex-grow:1;"></div>
-        <button id="heat-btn">🔥 불 조절 (누르고 있기)</button>
-    </div>
 
-    <div id="stage-5" class="stage">
-        <h2>5단계: 토핑 주문 (3연속)</h2>
-        <p class="info-text">주문 순서대로 토핑을 올리세요!<br>시간이 촉박합니다!</p>
-        <div class="character">🐶</div>
-        
-        <div id="order-display">주문 확인 중...</div>
-
-        <div id="topping-box">
+        <div id="stage-1" class="stage">
+            <h2>1단계: 3연속 계란 깨기</h2>
+            <p class="info-text">계란 3개를 연속으로 깨야 합니다.<br>갈수록 빨라지고 좁아집니다!</p>
+            <div class="egg-count" id="egg-counter">
+                <span id="egg-icon-1">🥚</span> <span id="egg-icon-2">🥚</span> <span id="egg-icon-3">🥚</span>
             </div>
-    </div>
-
-    <div id="result-screen" class="stage">
-        <h2>🎉 완성! 🎉</h2>
-        <div class="character" id="result-img">🥞</div>
-        <div class="final-grade" id="final-grade-text"></div>
-        <div id="score-board" style="background: #f9f9f9; padding: 10px; border-radius: 10px; margin-bottom: 20px;">
-            <div class="score-row"><span>계란</span><span id="score-1">0</span></div>
-            <div class="score-row"><span>반죽</span><span id="score-2">0</span></div>
-            <div class="score-row"><span>머랭</span><span id="score-3">0</span></div>
-            <div class="score-row"><span>굽기</span><span id="score-4">0</span></div>
-            <div class="score-row"><span>토핑</span><span id="score-5">0</span></div>
-            <hr>
-            <div class="score-row" style="font-weight:bold;"><span>총점</span><span id="score-total">0</span></div>
+            
+            <div id="crack-zone">
+                <div id="crack-target" style="left: 40%; width: 20%;"></div>
+                <div id="crack-needle"></div>
+            </div>
+            
+            <div style="flex-grow:1; display:flex; align-items:center; justify-content:center;">
+                <div class="character" id="egg-char">🥚</div>
+            </div>
+            <button id="crack-btn">탁! (집중하세요)</button>
         </div>
-        <button id="restart-btn">다시 만들기</button>
-    </div>
-</div>
 
-<script src="game.js"></script>
+        <div id="stage-2" class="stage">
+            <h2>2단계: 반죽 사수하기</h2>
+            <p class="info-text">원을 그리며 빠르게 섞으세요!<br><span class="warning-text">🐰토끼가 반죽에 후추를 훔쳐갑니다! 즉시 처치!</span></p>
+            <div class="status-bar"><div id="mix-fill" class="fill"></div></div>
+            
+            <div id="bowl-area">
+                <span style="font-size:4rem;">🥣</span>
+                <div id="rabbit-intruder" class="intruder hidden" style="top: -10px; right: -10px;">🐰</div>
+            </div>
+            <p id="mix-percent" style="font-weight:bold; font-size:1.5rem; margin:10px 0;">0%</p>
+            <div style="flex-grow:1;"></div>
+        </div>
+
+        <div id="stage-3" class="stage">
+            <h2>3단계: 아슬아슬 머랭</h2>
+            <p class="info-text">연타하여 90%~99%에 멈추세요.<br><span class="warning-text">⚠️ 100% 넘으면 즉시 실패(0점)!</span></p>
+            <div class="status-bar" style="background:#333;">
+                <div class="danger-zone"></div>
+                <div id="meringue-fill" class="fill" style="background:#fff;"></div>
+            </div>
+            <div id="meringue-foam">☁️</div>
+            <div style="flex-grow:1;"></div>
+            <button id="whisk-btn" style="touch-action: manipulation;">휘핑하기! (조심해!)</button>
+            <button id="stop-whisk-btn" style="background:#4CAF50; color:white; margin-top:5px;">멈추기 (완성)</button>
+        </div>
+
+        <div id="stage-4" class="stage">
+            <h2>4단계: 불조절과 도둑 여우</h2>
+            <p class="info-text">움직이는 초록 칸에 온도를 맞추세요.<br><span class="warning-text">🦊여우가 나타나면 1.5초 안에 잡으세요! 안 그러면 훔쳐갑니다!</span></p>
+            
+            <div style="display:flex; justify-content: center; gap:15px; align-items: flex-end; height:200px;">
+                <div id="temp-gauge">
+                    <div id="temp-target"></div>
+                    <div id="temp-indicator"></div>
+                </div>
+                <div id="pan-area">
+                    <span id="pancake">🥞</span>
+                    <div id="fox-intruder" class="intruder hidden" style="bottom: -10px; right: -20px; width:60px; height:60px; font-size:2.5rem; z-index:101;">🦊</div>
+                </div>
+            </div>
+            
+            <div style="flex-grow:1;"></div>
+            <button id="heat-btn" style="user-select:none; -webkit-user-select:none;">🔥 가열 (꾹 누르기)</button>
+        </div>
+
+        <div id="stage-5" class="stage">
+            <h2>5단계: 블라인드 토핑</h2>
+            <p class="info-text">3초 뒤에 주문표가 사라집니다.<br>기억력을 믿고 순서대로 올리세요!</p>
+            
+            <div id="order-display">
+                <div id="order-content">주문 로딩중...</div>
+            </div>
+            <div class="character" id="drop-zone" style="border: 2px dashed #ddd; border-radius: 50%; width: 100px; height: 100px; margin: 0 auto; display:flex; align-items:center; justify-content:center;">🥞</div>
+
+            <div id="topping-box"></div>
+        </div>
+
+        <div id="result-screen" class="stage">
+            <h2>🎉 요리 종료 🎉</h2>
+            <div class="character" id="result-img">🥞</div>
+            <div class="grade-badge" id="final-grade-text"></div>
+            <div class="score-board">
+                <div class="score-row"><span>1. 계란 (순발력)</span><span id="score-1">0</span></div>
+                <div class="score-row"><span>2. 반죽 (위기관리)</span><span id="score-2">0</span></div>
+                <div class="score-row"><span>3. 머랭 (자제력)</span><span id="score-3">0</span></div>
+                <div class="score-row"><span>4. 굽기 (멀티태스킹)</span><span id="score-4">0</span></div>
+                <div class="score-row"><span>5. 토핑 (기억력)</span><span id="score-5">0</span></div>
+                <div class="score-row"><span>총점</span><span id="score-total">0</span></div>
+            </div>
+            <button id="restart-btn">다시 도전하기</button>
+        </div>
+    </div>
+
+    <script src="game.js"></script>
 </body>
 </html>
