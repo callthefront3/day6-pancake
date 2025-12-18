@@ -2,19 +2,12 @@
 const state = {
     stage: 0,
     scores: { stage1: 0, stage2: 0, stage3: 0, stage4: 0, stage5: 0 },
-    timers: [], 
-    isGameOver: false
+    timers: [],
 };
 
-const MAX_SCORE = 20; // 각 스테이지 만점 (총 100점)
+const MAX_SCORE = 20;
 
-// 창의 포커스를 잃으면 모든 조작을 중단시킴
-window.addEventListener('blur', () => {
-    isHeating = false; // 4단계 용
-    isDragging = false; // 2단계 용
-});
-
-// DOM 요소 가져오기
+// DOM Elements
 const screens = [
     document.getElementById('start-screen'),
     document.getElementById('stage-1'),
@@ -35,8 +28,8 @@ function showScreen(index) {
     state.stage = index;
     globalMsg.textContent = "";
     clearAllTimers();
-    // 0, 1단계와 결과창을 제외하고 타이머 바 표시
-    timerWrapper.style.display = (index > 1 && index < 6) ? 'block' : 'none';
+    // 1단계부터 타이머 바 표시
+    timerWrapper.style.display = (index >= 1 && index < 6) ? 'block' : 'none';
 }
 
 function clearAllTimers() {
@@ -50,333 +43,408 @@ function updateTimerUI(percent) {
 }
 
 function updateStatus(msg) {
-    statusText.textContent = msg;
+    statusText.innerHTML = msg;
 }
 
 function addScore(stageKey, points) {
-    state.scores[stageKey] = Math.min(MAX_SCORE, Math.max(0, points));
+    state.scores[stageKey] = Math.floor(Math.min(MAX_SCORE, Math.max(0, points)));
 }
 
-// === 게임 시작 및 재시작 ===
+// === 게임 시작 ===
 document.getElementById('start-btn').addEventListener('click', () => initStage1());
-document.getElementById('restart-btn').addEventListener('click', () => {
-    window.location.reload();
-});
+document.getElementById('restart-btn').addEventListener('click', () => window.location.reload());
 
 // ==========================================
-// 1단계: 계란 깨기
+// 1단계: 3연속 계란 깨기 (난이도: 가속 + 좁아짐)
 // ==========================================
 function initStage1() {
     showScreen(1);
-    updateStatus("타이밍에 맞춰 계란을 깨세요!");
-    
-    const bar = document.getElementById('crack-bar');
+    const target = document.getElementById('crack-target');
+    const needle = document.getElementById('crack-needle');
     const btn = document.getElementById('crack-btn');
+    const icons = [document.getElementById('egg-icon-1'), document.getElementById('egg-icon-2'), document.getElementById('egg-icon-3')];
+    
+    let currentEgg = 0;
     let pos = 0;
     let direction = 1;
-    let speed = 1;
+    let speed = 1.0;
+    let targetWidth = 20;
+    let loop;
+    let totalScore = 0;
 
-    const interval = setInterval(() => {
-        pos += speed * direction;
-        if (pos >= 95 || pos <= 0) direction *= -1;
-        bar.style.left = pos + '%';
-    }, 16);
-    state.timers.push(interval);
+    function setupEgg() {
+        if (currentEgg >= 3) {
+            finishStage1(totalScore);
+            return;
+        }
+        
+        speed = 1.0 + (currentEgg * 1.5); // 속도 증가폭 상향
+        targetWidth = 22 - (currentEgg * 6); // 너비 감소폭 상향
+        
+        target.style.width = targetWidth + '%';
+        target.style.left = (50 - targetWidth/2) + '%';
+        
+        icons.forEach((icon, i) => {
+            icon.className = i === currentEgg ? 'egg-active' : '';
+            icon.style.opacity = i < currentEgg ? 0.3 : 1;
+        });
+
+        updateStatus(`${currentEgg + 1}번째 계란! (난이도: ${['보통','어려움','헬'][currentEgg]})`);
+        pos = Math.random() * 100;
+        
+        loop = setInterval(() => {
+            pos += speed * direction;
+            if (pos >= 100 || pos <= 0) direction *= -1;
+            needle.style.left = pos + '%';
+        }, 16);
+        state.timers.push(loop);
+        
+        btn.disabled = false;
+        btn.textContent = "탁! 깨기";
+    }
 
     btn.onclick = () => {
-        clearInterval(interval);
-        btn.onclick = null;
+        clearInterval(loop);
+        btn.disabled = true;
         
-        const targetCenter = 50;
-        let points = Math.max(0, 20 - Math.floor(Math.abs(targetCenter - pos)));
-
-        if (pos >= 45 && pos <= 55) {
-            updateStatus("Perfect! 깔끔하게 깨졌어요!");
-        } else if (pos >= 40 && pos <= 60) {
-            updateStatus("Good! 껍질이 조금 들어갔네요.");
+        const halfWidth = targetWidth / 2;
+        const diff = Math.abs(pos - 50);
+        
+        let points = 0;
+        if (diff <= halfWidth) {
+            points = 20;
+            globalMsg.textContent = "나이스! 깔끔합니다!";
+            document.getElementById('egg-char').textContent = "🍳";
         } else {
-            updateStatus("Bad... 계란이 으깨졌어요.");
+            points = Math.max(0, 20 - (diff - halfWidth) * 3); // 감점 폭 증가
+            globalMsg.textContent = "앗, 껍질이 들어갔어요...";
+            document.getElementById('egg-char').textContent = "💥";
         }
 
-        addScore('stage1', points);
-        setTimeout(initStage2, 1500);
+        totalScore += points;
+        
+        setTimeout(() => {
+            document.getElementById('egg-char').textContent = "🥚";
+            globalMsg.textContent = "";
+            currentEgg++;
+            setupEgg();
+        }, 800);
     };
+
+    setupEgg();
+
+    function finishStage1(sumScore) {
+        addScore('stage1', sumScore / 3);
+        setTimeout(initStage2, 1000);
+    }
 }
+
 // ==========================================
-// 2단계: 반죽 믹싱 (난이도 상향: 시간 제한 추가 + 토끼 방해 강화)
+// 2단계: 반죽 (난이도: 토끼가 게이지 깎음)
 // ==========================================
 function initStage2() {
     showScreen(2);
-    updateStatus("10초 안에 반죽을 섞으세요! 토끼는 더 빨리 방해합니다!");
+    updateStatus("섞으세요! 토끼를 방치하면 <b style='color:red'>반죽에 후추를 뿌릴 거예요!</b>");
 
     const bowl = document.getElementById('bowl-area');
     const fillBar = document.getElementById('mix-fill');
-    const msg = document.getElementById('mix-msg');
     const rabbit = document.getElementById('rabbit-intruder');
+    const percentTxt = document.getElementById('mix-percent');
     
     let progress = 0;
     let rabbitActive = false;
-    let pepperCount = 0;
-    let isDragging = false;
+    let rabbitDamageTimer = null;
+    let timeLeft = 12.0; 
+    const MAX_TIME = 12.0;
     
-    let timeLeft = 10; // 10초 (0.1초 단위)
-    const MAX_TIME = 10;
-
     fillBar.style.width = '0%';
     rabbit.classList.add('hidden');
 
-    // --- 난이도 조절 포인트 1: 전체 시간 제한 추가 ---
     const stageTimer = setInterval(() => {
         timeLeft -= 0.1;
-        timerBar.style.width = (timeLeft / MAX_TIME * 100) + '%';
-
-        if (timeLeft <= 0) {
-            clearInterval(stageTimer);
-            finishStage2(pepperCount, true); // 시간 초과로 종료
-        }
+        updateTimerUI(timeLeft / MAX_TIME * 100);
+        if (timeLeft <= 0) finishStage2(false);
     }, 100);
     state.timers.push(stageTimer);
 
-    const startDrag = () => { isDragging = true; };
-    const endDrag = () => { isDragging = false; };
+    let isDragging = false;
+    const startDrag = () => isDragging = true;
+    const endDrag = () => isDragging = false;
     
     bowl.addEventListener('mousedown', startDrag);
-    bowl.addEventListener('mouseup', endDrag);
+    window.addEventListener('mouseup', endDrag);
     bowl.addEventListener('touchstart', startDrag);
-    bowl.addEventListener('touchend', endDrag);
+    window.addEventListener('touchend', endDrag);
 
-    const mixHandler = () => {
-        if (isDragging && progress < 100 && !rabbitActive) {
-            progress += 0.5; // 진행 속도 약간 상향 (0.3 -> 0.5)
-            fillBar.style.width = progress + '%';
-            msg.textContent = `반죽 진행도: ${Math.floor(progress)}%`;
-
-            if (progress >= 100) {
-                finishStage2(pepperCount, false);
-            }
+    const mixHandler = (e) => {
+        e.preventDefault(); 
+        if (isDragging && !rabbitActive && progress < 100) {
+            progress += 0.7; 
+            updateProgress();
         }
     };
     bowl.addEventListener('mousemove', mixHandler);
     bowl.addEventListener('touchmove', mixHandler);
 
-    // --- 난이도 조절 포인트 2: 토끼 등장 빈도 및 속도 강화 ---
-    const rabbitTimer = setInterval(() => {
-        // 등장 확률 증가 (0.3 -> 0.5), 더 자주 나타남
-        if (progress < 95 && !rabbitActive && Math.random() < 0.5) {
+    function updateProgress() {
+        progress = Math.min(100, Math.max(0, progress));
+        fillBar.style.width = progress + '%';
+        percentTxt.textContent = Math.floor(progress) + '%';
+        if (progress >= 100) finishStage2(true);
+    }
+
+    const rabbitSpawner = setInterval(() => {
+        if (!rabbitActive && progress < 95 && Math.random() < 0.45) { // 출현 빈도 증가
             rabbitActive = true;
             rabbit.classList.remove('hidden');
-            updateStatus("🐰 토끼 습격! 1초 안에 쫓아내세요!!");
+            globalMsg.textContent = "🐰 토끼가 후추를 뿌리는 중!! (터치!)";
             
-            // 후추 뿌리는 대기 시간 단축 (1.5초 -> 1.0초)
-            const pepperTimer = setTimeout(() => {
-                if (rabbitActive) {
-                    pepperCount++;
-                    globalMsg.textContent = `🐰 매워!! (후추 ${pepperCount}회)`;
-                    rabbitActive = false;
-                    rabbit.classList.add('hidden');
-                }
-            }, 1000); 
-            state.timers.push(pepperTimer);
+            rabbitDamageTimer = setInterval(() => {
+                progress -= 2.5; // 감소량 증가
+                if (progress < 0) progress = 0;
+                updateProgress();
+            }, 100);
+            state.timers.push(rabbitDamageTimer);
         }
-    }, 1200); // 체크 주기 단축 (1.5초 -> 1.2초)
-    state.timers.push(rabbitTimer);
+    }, 1200);
+    state.timers.push(rabbitSpawner);
 
-    rabbit.onclick = (e) => {
+    rabbit.onmousedown = rabbit.ontouchstart = (e) => {
         e.stopPropagation();
+        e.preventDefault();
         rabbitActive = false;
         rabbit.classList.add('hidden');
-        updateStatus("휴... 토끼를 막았습니다!");
+        globalMsg.textContent = "토끼를 쫓아냈습니다!";
+        clearInterval(rabbitDamageTimer);
     };
 
-    function finishStage2(peppers, isTimeOut) {
+    function finishStage2(success) {
         clearAllTimers();
-        
-        let score = 20 - (peppers * 5); // 후추 페널티
-        if (isTimeOut) {
-            score = Math.max(0, score - 10); // 시간 초과 페널티
-            updateStatus(`시간 초과! 반죽이 굳었습니다... (후추 피해: ${peppers}회)`);
+        if (success) {
+            addScore('stage2', 20);
+            updateStatus("반죽 완성! 끈기가 대단하군요.");
         } else {
-            updateStatus(`반죽 완성! (후추 피해: ${peppers}회)`);
+            addScore('stage2', Math.floor(progress / 5));
+            updateStatus("시간 초과! 반죽이 덜 되었습니다.");
         }
-        
-        addScore('stage2', Math.max(0, score));
         setTimeout(initStage3, 1500);
     }
 }
 
 // ==========================================
-// 3단계: 머랭 치기
+// 3단계: 머랭 (난이도: 오버 휘핑 - 넘치면 0점)
 // ==========================================
 function initStage3() {
     showScreen(3);
-    updateStatus("버튼을 빠르게 연타하세요!");
+    updateStatus("90%~99% 사이에서 '멈추기'를 누르세요.");
 
     const btn = document.getElementById('whisk-btn');
+    const stopBtn = document.getElementById('stop-whisk-btn');
     const fillBar = document.getElementById('meringue-fill');
     const foam = document.getElementById('meringue-foam');
     
     let stiffness = 0;
-    let timeLeft = 5.0;
-    const MAX_TIME = 5.0;
+    let isFailed = false;
+    let timeLeft = 8.0;
 
-    fillBar.style.width = '0%';
-
-    const timer = setInterval(() => {
-        timeLeft -= 0.1;
-        timerBar.style.width = (timeLeft / MAX_TIME * 100) + '%';
-        if (timeLeft <= 0) {
-            finishStage3();
+    const decayTimer = setInterval(() => {
+        if (!isFailed) {
+            stiffness -= 0.25; // 자연 감소량 증가
+            if (stiffness < 0) stiffness = 0;
+            updateUI();
         }
-    }, 100);
-    state.timers.push(timer);
+        
+        timeLeft -= 0.05;
+        updateTimerUI(timeLeft / 8.0 * 100);
+        if (timeLeft <= 0 && !isFailed) finishStage3();
+    }, 50);
+    state.timers.push(decayTimer);
+
+    function updateUI() {
+        fillBar.style.width = stiffness + '%';
+        let scale = 1 + (stiffness / 100);
+        foam.style.transform = `scale(${scale})`;
+        
+        if (stiffness > 90) fillBar.style.backgroundColor = '#ffeb3b';
+        else fillBar.style.backgroundColor = '#4CAF50';
+
+        if (stiffness >= 100) {
+            isFailed = true;
+            failMeringue();
+        }
+    }
+
+    function failMeringue() {
+        fillBar.style.backgroundColor = '#5d5d5d';
+        foam.textContent = "🧈";
+        globalMsg.textContent = "망했다! 너무 저어서 버터가 됐어요!";
+        btn.disabled = true;
+        stopBtn.disabled = true;
+        finishStage3(true);
+    }
 
     btn.onclick = () => {
-        if (stiffness < 100) {
-            stiffness += 5;
-            fillBar.style.width = stiffness + '%';
-            let scale = 1 + (stiffness / 100);
-            foam.style.transform = `scale(${scale})`;
-
-            if (stiffness >= 100) {
-                finishStage3();
-            }
+        if (!isFailed) {
+            stiffness += 6.5; // 증가량 증가
+            updateUI();
         }
     };
 
-    function finishStage3() {
-        btn.onclick = null;
+    stopBtn.onclick = () => finishStage3();
+
+    function finishStage3(isFail = false) {
         clearAllTimers();
-        let score = Math.floor((stiffness / 100) * 20);
+        btn.onclick = null;
+        stopBtn.onclick = null;
+
+        let score = 0;
+        if (isFail) {
+            score = 0;
+            updateStatus("오버 휘핑... 수플레가 부풀지 않습니다.");
+        } else {
+            if (stiffness >= 90) {
+                score = 20;
+                updateStatus("완벽한 머랭 뿔! (Perfect)");
+            } else if (stiffness >= 70) {
+                score = 15;
+                updateStatus("약간 묽지만 괜찮아요.");
+            } else {
+                score = 5;
+                updateStatus("거의 물이네요... 실패.");
+            }
+        }
         addScore('stage3', score);
-        if (stiffness >= 100) updateStatus("단단한 머랭 완성!");
-        else updateStatus(`머랭이 묽어요... (${stiffness}%)`);
-        setTimeout(initStage4, 1500);
+        setTimeout(initStage4, 2000);
     }
 }
 
 // ==========================================
-// 4단계: 굽기
+// 4단계: 굽기 (난이도: 무빙 타겟 + 열 관성 + 도둑 여우)
 // ==========================================
 function initStage4() {
     showScreen(4);
-    updateStatus("온도를 초록색에 맞추고 여우를 막으세요!");
+    updateStatus("초록 칸에 맞추세요! 여우가 나타나면 잡으세요!");
 
     const heatBtn = document.getElementById('heat-btn');
     const indicator = document.getElementById('temp-indicator');
-    const pancake = document.getElementById('pancake');
+    const target = document.getElementById('temp-target');
     const fox = document.getElementById('fox-intruder');
-    
+    const pancake = document.getElementById('pancake');
+
     let temperature = 0;
+    let velocity = 0;
     let isHeating = false;
-    let bakeTime = 0;
-    let timeLeft = 150; // 15초 (0.1초 단위)
-    const MAX_TIME = 150;
-    const TOTAL_BAKE_TIME = 80;
-
+    let scoreAccumulator = 0;
+    let totalTicks = 0;
     let foxActive = false;
-    fox.classList.add('hidden');
-
-    // === 수정된 이벤트 등록 부분 ===
-
-    // 마우스/터치 시작
-    const startHeating = (e) => {
-        e.preventDefault(); 
-        isHeating = true;
-    };
-
-    // 마우스/터치 종료 (전역 범위 감지)
-    const stopHeating = () => {
-        isHeating = false;
-    };
-
-    heatBtn.addEventListener('mousedown', startHeating);
-    heatBtn.addEventListener('touchstart', startHeating);
-
-    // 버튼 밖에서 떼더라도 감지할 수 있도록 window 객체에 등록
-    window.addEventListener('mouseup', stopHeating);
-    window.addEventListener('touchend', stopHeating);
-
-    // 추가: 여우를 클릭(탭)할 때 발생할 수 있는 드래그 상태 꼬임 방지
-    fox.addEventListener('mousedown', (e) => {
-        e.stopPropagation(); // 이벤트 전파 방지
-        stopHeating();       // 여우를 잡는 순간 불조절은 중단되도록 설정
-    });
+    let stealTimer = null;
+    
+    let targetPos = 40;
+    let targetDir = 1;
+    let timeLeft = 15.0; 
+    
+    const startHeat = (e) => { e.preventDefault(); isHeating = true; };
+    const stopHeat = () => { isHeating = false; };
+    
+    heatBtn.addEventListener('mousedown', startHeat);
+    heatBtn.addEventListener('touchstart', startHeat);
+    window.addEventListener('mouseup', stopHeat);
+    window.addEventListener('touchend', stopHeat);
 
     const loop = setInterval(() => {
-        timeLeft--;
-        timerBar.style.width = (timeLeft / MAX_TIME * 100) + '%';
+        targetPos += 0.6 * targetDir; // 타겟 이동 속도 증가
+        if (targetPos >= 75 || targetPos <= 20) targetDir *= -1;
+        target.style.bottom = targetPos + '%';
 
-        if (isHeating) temperature += 2;
-        else temperature -= 1.5;
+        if (isHeating) velocity += 0.45; // 가열 속도 증가
+        else velocity -= 0.25; // 냉각 속도 증가
 
-        temperature = Math.max(0, Math.min(100, temperature));
+        velocity *= 0.94; // 마찰력 감소 (더 미끄러움)
+        temperature += velocity;
+
+        if (temperature < 0) { temperature = 0; velocity = 0; }
+        if (temperature > 100) { temperature = 100; velocity = 0; }
+        
         indicator.style.bottom = temperature + '%';
 
-        if (temperature >= 40 && temperature <= 70) {
-            bakeTime++;
-            pancake.style.color = "#8D6E63";
-            pancake.style.opacity = 0.5 + (bakeTime / TOTAL_BAKE_TIME) * 0.5;
-
-            if ((bakeTime / TOTAL_BAKE_TIME) >= 1) {
-                pancake.style.filter = "grayscale(70%) brightness(60%) contrast(130%)";
-                globalMsg.textContent = "팬케이크가 타버렸어요!!";
-            }
+        const isHit = temperature >= targetPos && temperature <= (targetPos + 25);
+        if (isHit) {
+            scoreAccumulator++;
+            pancake.style.opacity = 0.5 + (scoreAccumulator / 150);
+            target.style.background = "rgba(76, 175, 80, 0.8)";
+        } else {
+            target.style.background = "rgba(76, 175, 80, 0.3)";
         }
+        
+        totalTicks++;
+        timeLeft -= 0.05;
+        updateTimerUI(timeLeft / 15.0 * 100);
 
-        if (timeLeft <= 0) {
-            finishStage4(bakeTime, TOTAL_BAKE_TIME);
-        }
+        if (timeLeft <= 0) finishStage4(scoreAccumulator, totalTicks);
 
-    }, 100);
+    }, 50);
     state.timers.push(loop);
 
-    const foxTimer = setInterval(() => {
-        if (!foxActive && Math.random() < 0.25) {
+    // 도둑 여우 출현 로직
+    const foxSpawner = setInterval(() => {
+        if (!foxActive && Math.random() < 0.35) { // 35% 확률로 출현
             foxActive = true;
             fox.classList.remove('hidden');
-            updateStatus("🦊 여우가 나타났다!! 터치해서 막으세요!");
-
-            const stealTimer = setTimeout(() => {
+            globalMsg.textContent = "🦊 여우 출현! 1.5초 안에 잡으세요!";
+            
+            // 1.5초 후 훔쳐가기
+            stealTimer = setTimeout(() => {
                 if (foxActive) {
-                    gameOver("여우에게 팬케이크를 뺏겼습니다 ㅠㅠ");
+                    globalMsg.textContent = "😭 여우가 팬케이크를 훔쳐갔습니다!";
+                    pancake.textContent = "💨"; // 사라진 이펙트
+                    finishStage4(0, 1, true); // 0점 처리, 도난 플래그 true
                 }
             }, 1500);
             state.timers.push(stealTimer);
         }
-    }, 2000);
-    state.timers.push(foxTimer);
+    }, 2500); // 2.5초마다 체크
+    state.timers.push(foxSpawner);
 
-    fox.onclick = () => {
-        foxActive = false;
-        fox.classList.add('hidden');
-        updateStatus("여우를 쫓아냈습니다! 불 조절 집중!");
+    // 여우 퇴치
+    fox.onmousedown = fox.ontouchstart = (e) => {
+        e.stopPropagation(); e.preventDefault();
+        if (foxActive) {
+            foxActive = false;
+            fox.classList.add('hidden');
+            globalMsg.textContent = "나이스! 여우를 쫓아냈습니다!";
+            clearTimeout(stealTimer); // 훔치기 타이머 취소
+        }
     };
 
-    function finishStage4(bakeTime, totalTime) {
+    function finishStage4(hits, total, stolen = false) {
         clearAllTimers();
-        let error = totalTime - bakeTime;
-        let score = 20 - Math.abs(Math.floor(error / 10 * 3));
-        addScore('stage4', score);
-
-        if (error > 50)
-            updateStatus("굽기 완료! 하지만 반죽이 익지 않았어요...");
-        else if (error < - 10)
-            updateStatus("굽기 완료! 하지만 까맣게 탔습니다...");
-        else
-            updateStatus("굽기 완료! 노릇노릇하네요.");
-
-        setTimeout(initStage5, 1500);
+        if (stolen) {
+            addScore('stage4', 0);
+            updateStatus("도난 발생! 굽기 실패...");
+        } else {
+            const ratio = hits / total;
+            let score = 0;
+            if (ratio > 0.65) score = 20;
+            else if (ratio > 0.45) score = 15;
+            else if (ratio > 0.25) score = 10;
+            else score = 5;
+            addScore('stage4', score);
+            updateStatus(`굽기 완료! (정확도: ${Math.floor(ratio*100)}%)`);
+        }
+        setTimeout(initStage5, 2000);
     }
 }
 
 // ==========================================
-// 5단계: 토핑 (터치/드래그 지원 버전)
+// 5단계: 토핑 (난이도: 블라인드 주문)
 // ==========================================
 function initStage5() {
     showScreen(5);
-    const orderDisplay = document.getElementById('order-display');
+    updateStatus("주문을 잘 기억하세요! 3초 뒤 사라집니다.");
+
+    const orderContent = document.getElementById('order-content');
     const toppingBox = document.getElementById('topping-box');
-    const dropZone = document.querySelector('#stage-5 .character'); 
+    const dropZone = document.getElementById('drop-zone'); 
 
     const toppings = [
         { name: "딸기", icon: "🍓" },
@@ -388,164 +456,61 @@ function initStage5() {
     ];
 
     const targetOrder = [];
-    for(let i=0; i<3; i++) {
-        targetOrder.push(toppings[Math.floor(Math.random() * toppings.length)]);
-    }
+    for(let i=0; i<3; i++) targetOrder.push(toppings[Math.floor(Math.random() * toppings.length)]);
 
-    let currentStep = 0; 
-    let timeLeft = 12.0;
-    const MAX_TIME = 12.0;
+    orderContent.innerHTML = targetOrder.map(t => `<span style="font-size:2rem; margin:0 5px;">${t.icon}</span>`).join('');
+    orderContent.classList.remove('blur-text'); // 리셋
 
-    function updateOrderUI() {
-        if (currentStep >= 3) {
-            orderDisplay.textContent = "✅ 모든 토핑 완료!";
-            return;
-        }
-        const currentTarget = targetOrder[currentStep];
-        orderDisplay.innerHTML = `
-            남은 주문: <span class="current-target">${currentTarget.icon} ${currentTarget.name}</span>
-            <br><span style="font-size:0.8rem; color:#888;">(${currentStep + 1}/3 단계)</span>
-        `;
-    }
+    setTimeout(() => {
+        orderContent.classList.add('blur-text');
+        globalMsg.textContent = "주문표가 가려졌습니다! 기억을 더듬으세요.";
+    }, 3000);
 
-    updateOrderUI();
-    updateStatus("토핑을 팬케이크 위로 드래그하세요!");
-
-    const timer = setInterval(() => {
-        timeLeft -= 0.1;
-        timerBar.style.width = (timeLeft / MAX_TIME * 100) + '%';
-        if (timeLeft <= 0)
-            finishStage5(false);
-    }, 100);
-    state.timers.push(timer);
-
-    // --- 토핑 생성 및 이벤트 바인딩 ---
+    let currentStep = 0;
+    
     toppingBox.innerHTML = '';
     const shuffled = [...toppings].sort(() => Math.random() - 0.5);
     
     shuffled.forEach(t => {
         const div = document.createElement('div');
         div.className = 'topping-item';
-        div.style.touchAction = 'none'; // 브라우저 기본 스크롤 방지 (중요)
-        div.innerHTML = `<span style="font-size:2rem">${t.icon}</span><br><span style="font-size:0.8rem">${t.name}</span>`;
-        div.dataset.toppingName = t.name;
-
-        // 1. PC용 Drag & Drop
-        div.setAttribute('draggable', true);
-        div.addEventListener('dragstart', (e) => {
-            e.dataTransfer.setData('text/plain', t.name);
-        });
-
-        // 2. 모바일용 터치 이벤트
-        let clone;
-        div.addEventListener('touchstart', (e) => {
-            const touch = e.touches[0];
-            // 드래그 시각화를 위한 클론 생성
-            clone = div.cloneNode(true);
-            clone.style.position = 'fixed';
-            clone.style.left = touch.clientX - 25 + 'px';
-            clone.style.top = touch.clientY - 25 + 'px';
-            clone.style.zIndex = '1000';
-            clone.style.opacity = '0.8';
-            clone.style.pointerEvents = 'none'; // 클론이 아래 요소를 가리지 않게 함
-            document.body.appendChild(clone);
-        });
-
-        div.addEventListener('touchmove', (e) => {
-            if (!clone) return;
-            const touch = e.touches[0];
-            clone.style.left = touch.clientX - 25 + 'px';
-            clone.style.top = touch.clientY - 25 + 'px';
-
-            // 드롭 위치 판정 (드롭존의 위치 계산)
-            const rect = dropZone.getBoundingClientRect();
-            if (touch.clientX >= rect.left && touch.clientX <= rect.right &&
-                touch.clientY >= rect.top && touch.clientY <= rect.bottom) {
-                dropZone.style.border = '2px dashed #ffc46bff'; // 드래그 오버 시 시각적 피드백
-            } else {
-                dropZone.style.border = 'none';
-            }
-        });
-
-        div.addEventListener('touchend', (e) => {
-            if (!clone) return;
-            const touch = e.changedTouches[0];
-            document.body.removeChild(clone);
-            clone = null;
-
-            // 드롭 위치 판정 (드롭존의 위치 계산)
-            const rect = dropZone.getBoundingClientRect();
-            if (touch.clientX >= rect.left && touch.clientX <= rect.right &&
-                touch.clientY >= rect.top && touch.clientY <= rect.bottom) {
-                checkTopping(t.name);
-            }
-        });
-
+        div.innerHTML = `<span style="font-size:1.8rem">${t.icon}</span><span style="font-size:0.7rem">${t.name}</span>`;
+        div.onclick = () => checkTopping(t);
         toppingBox.appendChild(div);
     });
 
-    // PC용 드롭 이벤트
-    dropZone.addEventListener('dragover', (e) => {
-        e.preventDefault();
-        dropZone.style.border = '2px dashed #ffc46bff'; // 드래그 오버 시 시각적 피드백
-    });
-    dropZone.addEventListener('dragleave', (e) => {
-        e.preventDefault();
-        dropZone.style.border = 'none';
-    });
-    dropZone.addEventListener('drop', (e) => {
-        e.preventDefault();
-        checkTopping(e.dataTransfer.getData('text/plain'));
-    });
-
-    // 정답 확인 로직 공통화
-    function checkTopping(name) {
+    function checkTopping(selected) {
         if (currentStep >= 3) return;
-        const currentTarget = targetOrder[currentStep].name;
-
-        if (name === currentTarget) {
+        const expected = targetOrder[currentStep];
+        
+        if (selected.name === expected.name) {
+            dropZone.innerHTML += selected.icon;
             currentStep++;
-            globalMsg.textContent = `👍 ${name} 성공!`;
-            dropZone.innerHTML += targetOrder[currentStep-1].icon; 
             if (currentStep >= 3) finishStage5(true);
-            else updateOrderUI();
         } else {
-            timeLeft -= 1.5;
-            globalMsg.textContent = `❌ 틀렸어요! (시간 감소)`;
-
-            dropZone.style.border = '2px solid red'; // 틀릴 시 시각적 피드백
-            setTimeout(() => {
-                globalMsg.textContent = "";
-                dropZone.style.border = 'none';
-            }, 500);
+            globalMsg.textContent = `❌ 땡! (정답은 ${expected.name})`;
+            dropZone.textContent = "💩"; 
+            finishStage5(false);
         }
     }
 
-    function finishStage5(isSuccess) {
+    function finishStage5(success) {
         clearAllTimers();
-        let score = isSuccess ? 20 : Math.max(0, currentStep * 5);
+        let score = success ? 20 : 0;
         addScore('stage5', score);
-        updateStatus(isSuccess ? "배달 시작!" : "시간 초과...");
-        setTimeout(showResult, 1500);
+        updateStatus(success ? "완벽하게 기억했군요!" : "주문을 틀렸습니다...");
+        setTimeout(showResult, 2000);
     }
 }
 
 // ==========================================
-// 결과 화면 및 게임 오버
+// 결과 화면
 // ==========================================
-function gameOver(reason) {
-    clearAllTimers();
-    // 'Game Over' 시에도 재시작 대신 새로고침을 유도하도록 변경
-    alert("GAME OVER: " + reason + "\n다시 시작하려면 '확인'을 눌러 페이지를 새로고침하세요.");
-    window.location.reload();
-}
-
 function showResult() {
     showScreen(6);
-    
     const s = state.scores;
     const total = s.stage1 + s.stage2 + s.stage3 + s.stage4 + s.stage5;
-    
+
     document.getElementById('score-1').textContent = s.stage1;
     document.getElementById('score-2').textContent = s.stage2;
     document.getElementById('score-3').textContent = s.stage3;
@@ -554,8 +519,23 @@ function showResult() {
     document.getElementById('score-total').textContent = total;
 
     const gradeText = document.getElementById('final-grade-text');
-    if (total >= 90) gradeText.textContent = "🏆 전설의 수플레 장인!";
-    else if (total >= 70) gradeText.textContent = "👨‍🍳 훌륭한 쉐프!";
-    else if (total >= 50) gradeText.textContent = "🙂 평범한 홈베이커";
-    else gradeText.textContent = "😢 연습이 필요해요...";
+    const resultImg = document.getElementById('result-img');
+
+    if (total >= 95) {
+        gradeText.textContent = "🏆 수플레의 신";
+        gradeText.style.color = "#FFD700";
+        resultImg.textContent = "👸";
+    } else if (total >= 80) {
+        gradeText.textContent = "👨‍🍳 미슐랭 3스타";
+        gradeText.style.color = "#FF9800";
+        resultImg.textContent = "🥞";
+    } else if (total >= 50) {
+        gradeText.textContent = "😐 동네 빵집 사장님";
+        gradeText.style.color = "#888";
+        resultImg.textContent = "🥯";
+    } else {
+        gradeText.textContent = "☠️ 주방 출입 금지";
+        gradeText.style.color = "#333";
+        resultImg.textContent = "🔥";
+    }
 }
